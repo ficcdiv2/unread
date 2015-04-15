@@ -4,21 +4,24 @@ module Unread
       def mark_as_read!(target, options)
         raise ArgumentError unless options.is_a?(Hash)
 
-        user = options[:for]
-        assert_reader(user)
+        reader = options[:for]
+        assert_reader(reader)
 
         if target == :all
-          reset_read_marks_for_user(user)
+          reset_read_marks_for_user(reader)
         elsif target.is_a?(Array)
-          mark_array_as_read(target, user)
+          mark_array_as_read(target, reader)
         else
           raise ArgumentError
         end
       end
 
-      def mark_array_as_read(array, user)
-        ReadMark.transaction do
-          global_timestamp = user.read_mark_global(self).try(:timestamp)
+      def mark_array_as_read(array, reader)
+        read_mark = reader.class.read_mark_model
+        singularize_reader = reader.class.table_name.singularize.to_sym
+
+        read_mark.transaction do
+          global_timestamp = reader.read_mark_global(self).try(:timestamp)
 
           array.each do |obj|
             raise ArgumentError unless obj.is_a?(self)
@@ -27,7 +30,7 @@ module Unread
             if global_timestamp && global_timestamp >= timestamp
               # The object is implicitly marked as read, so there is nothing to do
             else
-              rm = obj.read_marks.where(:user_id => user.id).first || obj.read_marks.build(:user_id => user.id)
+              rm = obj.read_marks(reader).where("#{singularize_reader}_id" => reader.id).first_or_initialize
               rm.timestamp = timestamp
               rm.save!
             end
@@ -86,12 +89,15 @@ module Unread
         end
       end
 
-      def reset_read_marks_for_user(user)
-        assert_reader(user)
+      def reset_read_marks_for_user(reader)
+        assert_reader(reader)
 
-        ReadMark.transaction do
-          ReadMark.delete_all :readable_type => self.base_class.name, :user_id => user.id
-          ReadMark.create!    :readable_type => self.base_class.name, :user_id => user.id, :timestamp => Time.current
+        read_mark = reader.class.read_mark_model
+        singularize_reader = reader.class.table_name.singularize.to_sym
+
+        read_mark.transaction do
+          read_mark.delete_all(readable_type: self.base_class.name, "#{singularize_reader}_id" => reader.id)
+          read_mark.create!(readable_type: self.base_class.name, "#{singularize_reader}_id" => reader.id, timestamp: Time.current)
         end
       end
 
