@@ -1,14 +1,14 @@
 module Unread
   module DynamicModel
-    def self.define_model(resource_name)
-      model = "Unread::DynamicModel::#{resource_name.to_s.classify}ReadMark"
+    def self.define_model(reader_name)
+      model = "Unread::DynamicModel::#{reader_name.to_s.classify}ReadMark"
       # すでにクラスが定義されていたらそのクラスを返す
       return const_get(model) if const_defined?(model)
 
       klass = Class.new(ActiveRecord::Base) do
         belongs_to :readable, polymorphic: true
 
-        validates "#{resource_name}_id".to_sym, :readable_type, presence: true
+        validates "#{reader_name}_id".to_sym, :readable_type, presence: true
 
         scope :global, -> { where(readable_id: nil) }
         scope :single, -> { where.not(:readable_id, nil) }
@@ -31,7 +31,7 @@ module Unread
         end
       end
 
-      const_set("#{resource_name.to_s.classify}ReadMark", klass)
+      const_set("#{reader_name.to_s.classify}ReadMark", klass)
 
       klass
     end

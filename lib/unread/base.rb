@@ -5,26 +5,26 @@ module Unread
 
   module Base
     def acts_as_reader(options = {})
-      resource_name = table_name.singularize.to_sym
-      model = DynamicModel.define_model(resource_name)
+      reader_name = table_name.singularize.to_sym
+      model = DynamicModel.define_model(reader_name)
 
-      model.belongs_to resource_name, class_name: self.to_s
+      model.belongs_to reader_name, class_name: self.to_s
 
       has_many :read_marks, dependent: :delete_all,
-                            foreign_key: "#{resource_name}_id",
-                            inverse_of: resource_name,
+                            foreign_key: "#{reader_name}_id",
+                            inverse_of: reader_name,
                             class_name: model.to_s
 
       define_singleton_method :read_mark_model do
         model
       end
 
-      after_create do |resource|
+      after_create do |reader|
         # We assume that a new user should not be tackled by tons of old messages
         # created BEFORE he signed up.
         # Instead, the new user starts with zero unread messages
         (model.readable_classes || []).each do |klass|
-          klass.mark_as_read!(:all, for: resource)
+          klass.mark_as_read!(:all, for: reader)
         end
       end
 
@@ -45,8 +45,8 @@ module Unread
       end
 
       unread_tables.each do |table_name|
-        resource_name = table_name.sub("_read_marks", "")
-        model = DynamicModel.define_model(resource_name)
+        reader_name = table_name.sub("_read_marks", "")
+        model = DynamicModel.define_model(reader_name)
 
         has_many table_name.to_sym, as: :readable,
                                     dependent: :delete_all,

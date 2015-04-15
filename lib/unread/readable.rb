@@ -95,25 +95,25 @@ module Unread
         end
       end
 
-      def assert_reader(resource)
-        assert_reader_class(resource.class)
+      def assert_reader(reader)
+        assert_reader_class(reader.class)
 
-        unless resource.is_a?(resource.class.read_mark_model.reader_class)
-          raise ArgumentError, "Class #{resource.class.name} is not registered by acts_as_reader."
+        unless reader.is_a?(reader.class.read_mark_model.reader_class)
+          raise ArgumentError, "Class #{reader.class.name} is not registered by acts_as_reader."
         end
 
-        unless resource.id
+        unless reader.id
           raise ArgumentError, "The given user has no id."
         end
       end
 
-      def assert_reader_class(resource_class)
-        raise RuntimeError, 'There is no class using acts_as_reader.' unless resource_class.read_mark_model.reader_class
+      def assert_reader_class(reader_class)
+        raise RuntimeError, 'There is no class using acts_as_reader.' unless reader_class.read_mark_model.reader_class
       end
     end
 
     module InstanceMethods
-      def unread?(resource)
+      def unread?(reader)
         if self.respond_to?(:read_mark_id)
           # For use with scope "with_read_marks_for"
           return false if self.read_mark_id
@@ -124,35 +124,35 @@ module Unread
             true
           end
         else
-          self.class.unread_by(resource).exists?(self.id)
+          self.class.unread_by(reader).exists?(self.id)
         end
       end
 
       def mark_as_read!(options)
-        resource = options[:for]
-        self.class.assert_reader(resource)
+        reader = options[:for]
+        self.class.assert_reader(reader)
 
-        resource.class.read_mark_model.transaction do
-          if unread?(resource)
-            rm = read_mark(resource) || read_marks(resource).build("#{singularize_resource_name(resource)}_id".to_sym => resource.id)
+        reader.class.read_mark_model.transaction do
+          if unread?(reader)
+            rm = read_mark(reader) || read_marks(reader).build("#{singularize_reader_name(reader)}_id".to_sym => reader.id)
             rm.timestamp = self.send(readable_options[:on])
             rm.save!
           end
         end
       end
 
-      def read_mark(resource)
-        read_marks(resource).where("#{singularize_resource_name(resource)}_id".to_sym => resource.id).first
+      def read_mark(reader)
+        read_marks(reader).where("#{singularize_reader_name(reader)}_id".to_sym => reader.id).first
       end
 
-      def read_marks(resource)
-        send("#{singularize_resource_name(resource)}_read_marks")
+      def read_marks(reader)
+        send("#{singularize_reader_name(reader)}_read_marks")
       end
 
       private
 
-      def singularize_resource_name(resource)
-        resource.class.table_name.singularize.to_sym
+      def singularize_reader_name(reader)
+        reader.class.table_name.singularize.to_sym
       end
     end
   end
