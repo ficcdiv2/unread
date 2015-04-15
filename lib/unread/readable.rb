@@ -95,20 +95,25 @@ module Unread
         end
       end
 
-      def assert_reader(user)
-        assert_reader_class
+      def assert_reader(resource)
+        assert_reader_class(resource.class)
 
-        raise ArgumentError, "Class #{user.class.name} is not registered by acts_as_reader." unless user.is_a?(ReadMark.reader_class)
-        raise ArgumentError, "The given user has no id." unless user.id
+        unless resource.is_a?(resource.class.read_mark_model.reader_class)
+          raise ArgumentError, "Class #{resource.class.name} is not registered by acts_as_reader."
+        end
+
+        unless resource.id
+          raise ArgumentError, "The given user has no id."
+        end
       end
 
-      def assert_reader_class
-        raise RuntimeError, 'There is no class using acts_as_reader.' unless ReadMark.reader_class
+      def assert_reader_class(resource_class)
+        raise RuntimeError, 'There is no class using acts_as_reader.' unless resource_class.read_mark_model.reader_class
       end
     end
 
     module InstanceMethods
-      def unread?(user)
+      def unread?(resource)
         if self.respond_to?(:read_mark_id)
           # For use with scope "with_read_marks_for"
           return false if self.read_mark_id
@@ -119,25 +124,35 @@ module Unread
             true
           end
         else
-          self.class.unread_by(user).exists?(self.id)
+          self.class.unread_by(resource).exists?(self.id)
         end
       end
 
       def mark_as_read!(options)
-        user = options[:for]
-        self.class.assert_reader(user)
+        resource = options[:for]
+        self.class.assert_reader(resource)
 
-        ReadMark.transaction do
-          if unread?(user)
-            rm = read_mark(user) || read_marks.build(:user_id => user.id)
+        resource.class.read_mark_model.transaction do
+          if unread?(resource)
+            rm = read_mark(resource) || read_marks(resource).build("#{singularize_resource_name(resource)}_id".to_sym => resource.id)
             rm.timestamp = self.send(readable_options[:on])
             rm.save!
           end
         end
       end
 
-      def read_mark(user)
-        read_marks.where(:user_id => user.id).first
+      def read_mark(resource)
+        read_marks(resource).where("#{singularize_resource_name(resource)}_id".to_sym => resource.id).first
+      end
+
+      def read_marks(resource)
+        send("#{singularize_resource_name(resource)}_read_marks")
+      end
+
+      private
+
+      def singularize_resource_name(resource)
+        resource.class.table_name.singularize.to_sym
       end
     end
   end
