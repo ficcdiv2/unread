@@ -44,14 +44,19 @@ module Unread
         /.*_read_marks\z/ === table_name
       end
 
-      unread_tables.each do |table_name|
+      read_mark_models = unread_tables.map do |table_name|
         reader_name = table_name.sub("_read_marks", "")
-        model = DynamicModel.define_model(reader_name)
+        DynamicModel.define_model(reader_name)
+      end
 
-        has_many table_name.to_sym, as: :readable,
-                                    dependent: :delete_all,
-                                    class_name: model.to_s
+      define_singleton_method :read_mark_models do
+        read_mark_models
+      end
 
+      read_mark_models.each do |model|
+        has_many model.table_name.to_sym, as: :readable,
+                                          dependent: :delete_all,
+                                          class_name: model.to_s
         model.readable_classes ||= []
         model.readable_classes << self unless model.readable_classes.include?(self)
       end

@@ -47,33 +47,35 @@ module Unread
       #   def Message.read_scope(user)
       #     user.visible_messages
       #   end
-      def read_scope(user)
+      def read_scope(reader)
         self
       end
 
       def cleanup_read_marks!
-        assert_reader_class
+        read_mark_models.each do |model|
+          assert_reader_class(model)
 
-        ReadMark.reader_scope.find_each do |user|
-          ReadMark.transaction do
-            if oldest_timestamp = read_scope(user).unread_by(user).minimum(readable_options[:on])
-              # There are unread items, so update the global read_mark for this user to the oldest
-              # unread item and delete older read_marks
-              update_read_marks_for_user(user, oldest_timestamp)
-            else
-              # There is no unread item, so deletes all markers and move global timestamp
-              reset_read_marks_for_user(user)
+          model.reader_scope.find_each do |reader|
+            model.transaction do
+              if oldest_timestamp = read_scope(reader).unread_by(reader).minimum(readable_options[:on])
+                # There are unread items, so update the global read_mark for this user to the oldest
+                # unread item and delete older read_marks
+                update_read_marks_for_user(reader, oldest_timestamp)
+              else
+                # There is no unread item, so deletes all markers and move global timestamp
+                reset_read_marks_for_user(reader)
+              end
             end
           end
         end
       end
 
-      def update_read_marks_for_user(user, timestamp)
+      def update_read_marks_for_user(reader, timestamp)
         # Delete markers OLDER than the given timestamp
-        user.read_marks.where(:readable_type => self.base_class.name).single.older_than(timestamp).delete_all
+        reader.read_marks.where(readable_type: base_class.name).single.older_than(timestamp).delete_all
 
         # Change the global timestamp for this user
-        rm = user.read_mark_global(self) || user.read_marks.build(:readable_type => self.base_class.name)
+        rm = reader.read_mark_global(self) || reader.read_marks.build(readable_type: base_class.name)
         rm.timestamp = timestamp - 1.second
         rm.save!
       end
@@ -102,7 +104,7 @@ module Unread
       end
 
       def assert_reader(reader)
-        assert_reader_class(reader.class)
+        assert_reader_class(reader.class.read_mark_model)
 
         unless reader.is_a?(reader.class.read_mark_model.reader_class)
           raise ArgumentError, "Class #{reader.class.name} is not registered by acts_as_reader."
@@ -113,8 +115,8 @@ module Unread
         end
       end
 
-      def assert_reader_class(reader_class)
-        raise RuntimeError, 'There is no class using acts_as_reader.' unless reader_class.read_mark_model.reader_class
+      def assert_reader_class(read_mark_model)
+        raise RuntimeError, 'There is no class using acts_as_reader.' unless read_mark_model.reader_class
       end
     end
 

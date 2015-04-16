@@ -11,7 +11,7 @@ module Unread
         validates "#{reader_name}_id".to_sym, :readable_type, presence: true
 
         scope :global, -> { where(readable_id: nil) }
-        scope :single, -> { where.not(:readable_id, nil) }
+        scope :single, -> { where.not(readable_id: nil) }
         scope :older_than, -> (timestamp) { where([ 'timestamp < ?', timestamp ]) }
 
         # Returns the class defined by acts_as_reader
