@@ -143,7 +143,10 @@ module Unread
         reader.class.read_mark_model.transaction do
           if unread?(reader)
             rm = read_mark(reader) || read_marks(reader).build("#{singularize_reader_name(reader)}_id".to_sym => reader.id)
-            rm.timestamp = self.send(readable_options[:on])
+            # readableとなるクラスが更新された直後に `#mark_as_read!` を飛び出すと
+            # `self` が古い状態のレコードを取得してしまうため、既読状態にならない。
+            # そのためselfを呼び出すとき `reload` して最新の状態のレコードを取得する
+            rm.timestamp = self.reload.send(readable_options[:on])
             rm.save!
           end
         end
