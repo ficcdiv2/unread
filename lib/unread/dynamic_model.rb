@@ -1,5 +1,7 @@
 module Unread
   module DynamicModel
+    # ユーザとreadable(例えばメッセージモデルとか)との中間モデルを動的に定義する。
+    # この中間テーブルに未読/既読の状態を格納していく。
     def self.define_model(reader_name)
       model = "Unread::DynamicModel::#{reader_name.to_s.classify}ReadMark"
       # すでにクラスが定義されていたらそのクラスを返す

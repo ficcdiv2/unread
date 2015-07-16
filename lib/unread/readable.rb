@@ -16,6 +16,7 @@ module Unread
         end
       end
 
+      # 配列に指定したreadableレコード(例えば記事とか)を既読扱いにする
       def mark_array_as_read(array, reader)
         read_mark = reader.class.read_mark_model
         singularize_reader = reader.class.table_name.singularize.to_sym
@@ -70,6 +71,8 @@ module Unread
         end
       end
 
+      # 1つにまとめられたglobalな既読レコードを取得し、
+      # それ以降の各readableレコードに対する既読レコードを一つのglobalな既読レコードにまとめる
       def update_read_marks_for_user(reader, timestamp)
         # Delete markers OLDER than the given timestamp
         reader.read_marks.where(readable_type: base_class.name).single.older_than(timestamp).delete_all
@@ -80,6 +83,7 @@ module Unread
         rm.save!
       end
 
+      # 全ユーザの未読既読状態をリセットする
       def reset_read_marks_for_all
         ReadMark.transaction do
           ReadMark.delete_all :readable_type => self.base_class.name
@@ -91,6 +95,7 @@ module Unread
         end
       end
 
+      # unreadのテーブルに格納した既読レコードを一つにまとめる
       def reset_read_marks_for_user(reader)
         assert_reader(reader)
 
@@ -143,7 +148,7 @@ module Unread
         reader.class.read_mark_model.transaction do
           if unread?(reader)
             rm = read_mark(reader) || read_marks(reader).build("#{singularize_reader_name(reader)}_id".to_sym => reader.id)
-            # readableとなるクラスが更新された直後に `#mark_as_read!` を飛び出すと
+            # readableとなるクラスが更新された直後に `#mark_as_read!` を呼び出すと
             # `self` が古い状態のレコードを取得してしまうため、既読状態にならない。
             # そのためselfを呼び出すとき `reload` して最新の状態のレコードを取得する
             rm.timestamp = self.reload.send(readable_options[:on])

@@ -49,6 +49,7 @@ module Unread
         DynamicModel.define_model(reader_name)
       end
 
+      # 未読数を格納するテーブルのモデルを全て返すクラスメソッドを定義する
       define_singleton_method :read_mark_models do
         read_mark_models
       end
